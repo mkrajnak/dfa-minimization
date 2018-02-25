@@ -4,8 +4,21 @@
 import System.Environment
 
 main = do
-  getArgs >>= parse
+    (command:args) <- getArgs
+    performCommand command args
 
-parse ["-i"] = putStrLn("-i")
-parse ["-t"] = putStrLn("-t")
-parse [] = putStrLn("Usage: dka-2-mka [-i|-t] [file|stdin]")
+view :: [String] -> IO ()
+view [fileName] = do
+  contents <- readFile fileName
+  putStr contents
+
+transform :: [String] -> IO ()
+transform [fileName] = do
+    contents <- readFile fileName
+    putStr contents
+
+performCommand :: String -> [String] -> IO ()
+performCommand cmd file
+  | cmd == "-i" = view file
+  | cmd == "-t" = transform file
+  | otherwise = putStrLn "Usage: dka-2-mka [-i|-t] [file]"
