@@ -4,11 +4,10 @@
 import System.Environment
 import System.IO
 
-
 data Transition = Transition {
-        currState:: Char,
-        symbol :: Char,
-        nextState :: Char
+        currState:: String,
+        symbol :: String,
+        nextState :: String
 } deriving Show
 
 data DKA = DKA {
@@ -17,7 +16,6 @@ data DKA = DKA {
         endStates :: String,
         transitions :: [Transition]
 } deriving Show
-
 
 getStringToDelim :: Char -> String -> String
 getStringToDelim _ [] = []
@@ -37,10 +35,10 @@ getSeparatedSubStrings (x:xs) = getStringToDelim ',' (x:xs) : (jumpToDelim ',' x
 
 parseTransition :: [String] -> [Transition]
 parseTransition [] = []
-parseTransition ((f:_:s:_:t:_):xs) = Transition {
-        currState = f,
-        symbol = s,
-        nextState = t
+parseTransition (x:xs) = Transition {
+        currState =  (getSeparatedSubStrings x) !! 0,
+        symbol = (getSeparatedSubStrings x) !! 1,
+        nextState = (getSeparatedSubStrings x) !! 2
   } : parseTransition xs
 
 parseDKA :: [String] -> DKA
@@ -48,7 +46,7 @@ parseDKA (f:s:t:xs) = DKA {
         states = f,                     -- states are declared on the first line
         startState = s,           -- start state are declared on the second line
         endStates = t,              -- end states are declared on the third line
-        transitions = parseTransition  xs -- the rest of lines are output
+        transitions = parseTransition xs       -- the rest of lines are output
 }
 
 isInList :: Eq a => a -> [a] -> Bool
