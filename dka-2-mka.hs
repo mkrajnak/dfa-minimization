@@ -1,4 +1,4 @@
--- DKA-2-MKA
+-- DFA-2-MKA, project for FLP course at FIT BUT
 -- Martin Krajnak, xkrajn02@stud.fit.vutbr.cz
 
 import System.Environment
@@ -10,12 +10,28 @@ data Transition = Transition {
         nextState :: String
 } deriving Show
 
-data DKA = DKA {
+data DFA = DFA {
         states :: String,
         startState :: String,
         endStates :: String,
         transitions :: [Transition]
 } deriving Show
+
+getStates :: DFA -> String
+getStates (DFA states _ _ _) = states
+
+getStartState :: DFA -> String
+getStartState (DFA _ startState _ _) = startState
+
+getEndState :: DFA -> String
+getEndState (DFA _ _ endStates _) = endStates
+
+getTransitions :: DFA -> [String]
+getTransitions (DFA _ _ _ t) = getTransition t
+
+getTransition :: [Transition] -> [String]
+getTransition [] = []
+getTransition ((Transition c s n):ts) = (c++","++s++","++n):getTransition ts
 
 getStringToDelim :: Char -> String -> String
 getStringToDelim _ [] = []
@@ -41,8 +57,8 @@ parseTransition (x:xs) = Transition {
         nextState = (getSeparatedSubStrings x) !! 2
   } : parseTransition xs
 
-parseDKA :: [String] -> DKA
-parseDKA (f:s:t:xs) = DKA {
+parseDFA :: [String] -> DFA
+parseDFA (f:s:t:xs) = DFA {
         states = f,                     -- states are declared on the first line
         startState = s,           -- start state are declared on the second line
         endStates = t,              -- end states are declared on the third line
@@ -56,9 +72,10 @@ isInList el (x:xs) = do
     then True
     else isInList el xs
 
-firstArg :: [String] -> String
-firstArg [] = ""
-firstArg (x:xs) = x
+getFileArg :: [String] -> String
+getFileArg x = if (length x == 2)
+  then x !! 1
+  else ""
 
 checkArgs :: String -> Bool
 checkArgs arg = isInList arg ["-i", "-t"]
@@ -70,32 +87,37 @@ getAutomata fileName = do
     else readFile fileName
 
 view :: [String] -> IO()
-view dka = do
-  print $ parseDKA dka
+view raw_dfa = do
+  putStrLn $ getStates dfa
+  putStrLn $ getStartState dfa
+  putStrLn $ getEndState dfa
+  mapM_ putStrLn $ getTransitions dfa
+  where dfa = parseDFA raw_dfa
 
 minimize :: [String] -> IO ()
-minimize dka = do
-  print dka
+minimize raw_dfa = do
+  print $ parseDFA raw_dfa
 
 handleAutomata :: String -> [String] -> IO()
-handleAutomata cmd dka = if cmd == "-i"
-    then view dka
-    else minimize dka
+handleAutomata cmd dfa = if cmd == "-i"
+    then view dfa
+    else minimize dfa
 
 -- check if list has at least num lines
 hasNumLines :: Int -> [String] -> Bool
 hasNumLines num list = num > (length list)
 
+getHelp :: String
+getHelp = "Usage: ./dfa-2-mka [-i|-t] [file]"
 
 main = do
-  (cmd:args) <- getArgs
-  if (not (checkArgs cmd) || length args > 1)
-    then error "Usage: dka-2-mka [-i|-t] [file]"
+  args <- getArgs
+  -- check argument 1. zero args 2. 1st must be in [-i|-t] 3. less than tree
+  if ((length args == 0) || not (checkArgs $ head args) || (length args) > 2 )
+    then error getHelp
     else do
-      automata <- getAutomata $ firstArg args -- break input lineByLine
+      automata <- getAutomata $ getFileArg args       -- break input lineByLine
       let lineByLine = lines automata
-      print $ length lineByLine
-      print $ getSeparatedSubStrings "One,Two,Tree"
       if hasNumLines 4 lineByLine         -- input should have at least 4 lines
         then error "Automata description too short"
-        else handleAutomata cmd lineByLine
+        else handleAutomata (head args) lineByLine
