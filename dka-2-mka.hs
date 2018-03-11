@@ -51,26 +51,28 @@ getSeparatedSubStrings (x:xs) = getStringToDelim ',' (x:xs) : (jumpToDelim ',' x
 
 parseTransition :: [String] -> [Transition]
 parseTransition [] = []
-parseTransition (x:xs) = Transition {
+parseTransition (x:xs) = if length x > 0
+  then Transition {
         currState =  (getSeparatedSubStrings x) !! 0,
         symbol = (getSeparatedSubStrings x) !! 1,
         nextState = (getSeparatedSubStrings x) !! 2
   } : parseTransition xs
+  else error "State cannot be defined by an empty line" -- TODO rethink if this condition is needed
 
 parseDFA :: [String] -> DFA
 parseDFA (f:s:t:xs) = DFA {
         states = f,                     -- states are declared on the first line
         startState = s,           -- start state are declared on the second line
         endStates = t,              -- end states are declared on the third line
-        transitions = parseTransition xs       -- the rest of lines are output
+        transitions = parseTransition xs          -- the rest of lines are output
 }
 
 isInList :: Eq a => a -> [a] -> Bool
 isInList _ [] = False
-isInList el (x:xs) = do
-  if el == x
+isInList element (x:xs) = do
+  if element == x
     then True
-    else isInList el xs
+    else isInList element xs
 
 getFileArg :: [String] -> String
 getFileArg x = if (length x == 2)
