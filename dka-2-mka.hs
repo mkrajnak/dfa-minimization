@@ -7,51 +7,57 @@ import Data.List
 import Debug.Trace
 
 data Transition = Transition {
-        currState:: String,
+        currState:: Int,
         symbol :: String,
-        nextState :: String
+        nextState :: Int
 } deriving Show
 
 data DFA = DFA {
-        states :: String,
-        startState :: String,
-        endStates :: String,
+        states :: [Int],
+        startState :: Int,
+        endStates :: [Int],
         transitions :: [Transition],
         alphabet :: [String]
 } deriving Show
 
-data Hopcroft = Hopcroft {
-        p :: [String],
-        w :: [String]
-} deriving Show
 
-getStates :: DFA -> String
+view :: DFA -> IO()
+view dfa = do
+  putStrLn (getStatesString (getStates dfa))
+  putStrLn (show (getStartState dfa))
+  putStrLn (getStatesString (getEndStates dfa))
+  mapM_ putStrLn $ getTransitions dfa
+
+
+getStates :: DFA -> [Int]
 getStates (DFA states _ _ _ _) = states
 
-getStartState :: DFA -> String
+getStatesString :: [Int] -> String
+getStatesString [] = ""
+getStatesString (s:xs) = show s ++ "," ++ getStatesString xs
+
+getStartState :: DFA -> Int
 getStartState (DFA _ startState _ _ _) = startState
 
-getEndStates :: DFA -> String
+getEndStates :: DFA -> [Int]
 getEndStates (DFA _ _ endStates _ _) = endStates
 
+-- Return list of Transition structure
 getTrans :: DFA -> [Transition]
 getTrans (DFA _ _ _ t _) = t
 
+-- Return the list of transition as a List of areStringsEq
+-- Used for Printing
 getTransitions :: DFA -> [String]
 getTransitions (DFA _ _ _ t _) = getTransition t
 
 getTransition :: [Transition] -> [String]
 getTransition [] = []
-getTransition ((Transition c s n):ts) = (c++","++s++","++n):getTransition ts
+getTransition ((Transition c s n):ts) = (show c++","++ show s++","++ show n):getTransition ts
 
 getAlphabet :: DFA -> [String]
 getAlphabet (DFA _ _ _ _ alphabet) = alphabet
 
-getW :: Hopcroft -> [String]
-getW (Hopcroft w _) = w
-
-getP :: Hopcroft -> [String]
-getP (Hopcroft _ p) = p
 
 getStringToDelim :: Char -> String -> String
 getStringToDelim _ [] = []
@@ -73,9 +79,9 @@ parseTransition :: [String] -> [Transition]
 parseTransition [] = []
 parseTransition (x:xs) = if length x > 0
   then Transition {
-        currState =  (getSeparatedSubStrings x) !! 0,
+        currState = read ((getSeparatedSubStrings x) !! 0) :: Int,
         symbol = (getSeparatedSubStrings x) !! 1,
-        nextState = (getSeparatedSubStrings x) !! 2
+        nextState = read ((getSeparatedSubStrings x) !! 2) :: Int
   } : parseTransition xs
   else error "State cannot be defined by an empty line" -- TODO rethink if this condition is needed
 
@@ -94,10 +100,10 @@ unique (x:xs)
 
 parseDFA :: [String] -> DFA
 parseDFA (f:s:t:xs) = DFA {
-        states = f,                     -- states are declared on the first line
-        startState = s,           -- start state are declared on the second line
-        endStates = t,              -- end states are declared on the third line
-        transitions = parseTransition xs,        -- the rest of lines are output
+        states = map(\x -> read x :: Int)(getSeparatedSubStrings f),              -- states are declared on the first line
+        startState = read s :: Int,                       -- start state are declared on the second line
+        endStates = map(\x -> read x :: Int)(getSeparatedSubStrings t),         -- end states are declared on the third line
+        transitions = parseTransition xs,                 -- the rest of lines are output
         alphabet = sort $ unique $ parseAlphabet xs
 }
 
@@ -113,76 +119,76 @@ getFileArg x = if (length x == 2)
   then x !! 1
   else ""
 
+
 checkArgs :: String -> Bool
 checkArgs arg = isInList arg ["-i", "-t"]
 
+
+-- Reads DFA either from the specified file or stdin
 getAutomata :: String -> IO String
 getAutomata fileName = do
   if fileName == ""
     then getContents
     else readFile fileName
 
-view :: DFA -> IO()
-view dfa = do
-  putStrLn $ getStates dfa
-  putStrLn $ getStartState dfa
-  putStrLn $ getEndStates dfa
-  mapM_ putStrLn $ getTransitions dfa
-
-
-getStatesAsList :: DFA -> [String]
-getStatesAsList dfa = getSeparatedSubStrings $ getStates dfa
-
-getEndStatesAsList :: DFA -> [String]
-getEndStatesAsList dfa = getSeparatedSubStrings $ getEndStates dfa
-
 
 start_minimization :: DFA -> IO()
 start_minimization dfa = do
   print dfa
-  print $ minimize h dfa
-  where
-    p = sort((getEndStatesAsList dfa) ++ (getStatesAsList dfa \\ getEndStatesAsList dfa))
-    w = getEndStatesAsList dfa
-    h = Hopcroft { p=p, w=w }
+  print $ makeComplete dfa (maximum(getStates dfa)+1)
+  print $ minimize [(getStates dfa) \\ (getEndStates dfa), (getEndStates dfa)] dfa
 
 
---minimize :: Hopcroft -> DFA -> Hopcroft
-minimize h@(Hopcroft _ []) _ = h  -- while W is not empty
-minimize (Hopcroft p (state:xs)) dfa = minimize tmp dfa
-  where
-    tmp = goThroughAlphabet state (Hopcroft {p=p, w=xs}) (getAlphabet dfa) dfa-- let X
+minimize :: [[Int]] -> DFA -> [[Int]]
+minimize lel dfa = lel
 
 
---goThroughAlphabet :: String -> Hopcroft -> [String] -> DFA -> Hopcroft
-goThroughAlphabet _ h [] _ = h
-goThroughAlphabet state h (a:as) dfa =trace ("state: " ++ show state ++ "symbol:" ++ show a ++ " h:" ++ show h ) goThroughAlphabet state tmp as dfa
-  where
-    tmp = goThroughSetX x h
-    x = getAllTransitionsWith state a (getTrans dfa)
-
---goThroughSetX :: [String] -> Hopcroft -> Hopcroft
-goThroughSetX _ old@(Hopcroft [] w) = old
-goThroughSetX x old@(Hopcroft (y:ps) w)
-  | intersect x [y]  /= [] && [y] \\ x /= [] = trace ("x: " ++ show x ++ " y: " ++ show [y] ++ "\nold: " ++ show old ++ " n: " ++ show Hopcroft {p=(replaceP x y ps), w=(replaceW x y w)}) $ goThroughSetX x (Hopcroft {p=(replaceP x y ps), w=(replaceW x y w)})
-  | otherwise = trace ("x: " ++ show x ++ " y: " ++ show [y]) $ goThroughSetX x (Hopcroft {p=ps, w=w})
-
-replaceP :: [String] -> String -> [String] -> [String]
-replaceP x y ps = ((intersect [y] x) ++ ([y] \\ x)) ++ ps
+-- Checks if DFA has a transition for every symbol in Σ, if not add SINK state
+makeComplete :: DFA -> Int -> DFA
+makeComplete dfa@(DFA states start end trans alpha) sink
+  | (isComplete dfa) = dfa
+  | otherwise = trace("DFA not complete") DFA {
+        states = states ++ [sink],
+        startState = start,
+        endStates = end,
+        transitions = trans ++ addMissingTrans(states ++ [sink]) trans alpha sink,
+        alphabet = alpha
+}
 
 
-replaceW :: [String] -> String -> [String] -> [String]
-replaceW x y w
-  | elem y w = replaceP x y $ delete y w
-  | length(intersect [y] x) <= length([y] \\ x) = (intersect [y] x) ++ w
-  | otherwise = ([y] \\ x) ++ w
+-- Go through every state and adds a transition to the SINK state if missing
+addMissingTrans :: [Int] -> [Transition] -> [String] -> Int -> [Transition]
+addMissingTrans [] _ _ _  = []
+addMissingTrans (s:ss) trans alpha sink
+  = checkState s trans alpha sink ++ addMissingTrans ss trans alpha sink
 
 
-getAllTransitionsWith :: String -> String -> [Transition] -> [String]
-getAllTransitionsWith _ _ [] = []
-getAllTransitionsWith state symbol ((Transition c s e):ts)
-  | state == c && symbol == s = e:(getAllTransitionsWith state symbol ts)
-  | otherwise = getAllTransitionsWith state symbol ts
+-- Checks if given state has transition with symbol "a" from Σ, if not add it
+checkState :: Int -> [Transition] -> [String] -> Int -> [Transition]
+checkState _ _ [] _ = []
+checkState state trans (a:as) sink
+  | (hasRule state a trans) =  trace("Checking: "++ show state ++ "->"  ++ show a) checkState state trans as sink
+  | otherwise = trace ("Adding: " ++ show (Transition state a sink)) [(Transition state a sink)] ++ (checkState state trans as sink)
+
+
+-- helper function checks if transition is in list of transitions
+hasRule :: Int -> String -> [Transition] -> Bool
+hasRule _ _ [] = False
+hasRule state symbol (t:ts)
+  | (hasState state symbol t) = True
+  |  otherwise = hasRule state symbol ts
+
+
+hasState :: Int -> String -> Transition -> Bool
+hasState state symbol (Transition c s n)
+  | c == state && s == symbol = True
+  | otherwise = False
+
+
+isComplete :: DFA -> Bool
+isComplete dfa
+  | length (getTransitions dfa) == length (getStates dfa) * length (getAlphabet dfa) = trace("trans: " ++ show (length (getTransitions dfa)) ++ " calc: " ++ show (length (getStates dfa) * length (getAlphabet dfa))) True
+  | otherwise = False
 
 
 handleAutomata :: String -> DFA -> IO()
