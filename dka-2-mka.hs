@@ -134,13 +134,45 @@ getAutomata fileName = do
 
 start_minimization :: DFA -> IO()
 start_minimization dfa = do
-  print dfa
-  print $ makeComplete dfa (maximum(getStates dfa)+1)
-  print $ minimize [(getStates dfa) \\ (getEndStates dfa), (getEndStates dfa)] dfa
+  print $ makeComplete dfa sink
+  print $ minimize start dfa
+  where
+    start = [(getStates dfa) \\ (getEndStates dfa), (getEndStates dfa)]
+    sink = (maximum(getStates dfa)+1)
 
 
-minimize :: [[Int]] -> DFA -> [[Int]]
-minimize lel dfa = lel
+-- minimize :: [[Int]] -> DFA -> [[Int]]
+minimize lel@(s:xs) dfa@(DFA _ _ _ t alpha) = (provideEndStates s t alpha)
+  -- | checkClass (provideEndStates s t alpha) lel = minimize xs dfa
+  -- | otherwise =
+
+
+split currentStates endStates = [currentClass,currentStates \\ currentClass]
+  where
+    currentClass = filter (\x -> elem x currentStates) endStates
+
+checkClass :: [Int] -> [[Int]] -> Bool
+checkClass _ [] = False
+checkClass endStates (l:ls)
+  | intersect l endStates == [] = True
+  | otherwise = checkClass endStates ls
+
+
+provideEndStates :: [Int] -> [Transition] -> [String] -> [Int]
+provideEndStates states trans (a:as) = makeEndStatesList states trans a
+
+
+makeEndStatesList [] _ _  = []
+makeEndStatesList (s:xs) trans a = trace ("checking:" ++ show s ++ "symbol:" ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
+
+makeEndStatesTuples [] _ _  = []
+makeEndStatesTuples (s:xs) trans a = trace ("checking:" ++ show s ++ "symbol:" ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
+
+
+makeTransition :: Int -> String -> [Transition] -> Int
+makeTransition state symbol ((Transition c s e):xs)
+  | state == c && symbol == s = e
+  | otherwise = makeTransition state symbol xs
 
 
 -- Checks if DFA has a transition for every symbol in Σ, if not add SINK state
