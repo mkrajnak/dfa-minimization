@@ -92,7 +92,7 @@ parseAlphabet (x:xs) = getSymbol x:parseAlphabet xs
 getSymbol :: String -> String
 getSymbol transition = (getSeparatedSubStrings transition) !! 1
 
-unique :: [String] -> [String]
+-- unique :: [a] -> [a]
 unique [] = []
 unique (x:xs)
   | elem x xs = unique xs
@@ -131,25 +131,49 @@ getAutomata fileName = do
     then getContents
     else readFile fileName
 
+sortByLen :: [[a]] -> [[a]]
+sortByLen l = sortBy(\a b -> compare(length a) (length b)) l
+
 
 start_minimization :: DFA -> IO()
 start_minimization dfa = do
   print $ makeComplete dfa sink
-  print $ minimize start dfa
+  print $ compareResults [] start dfa
   where
-    start = [(getStates dfa) \\ (getEndStates dfa), (getEndStates dfa)]
-    sink = (maximum(getStates dfa)+1)
+    start = [(getEndStates dfa), (getStates dfa) \\ (getEndStates dfa)]
+    sink = maximum(getStates dfa)+1
 
 
--- minimize :: [[Int]] -> DFA -> [[Int]]
-minimize lel@(s:xs) dfa@(DFA _ _ _ t alpha) = (provideEndStates s t alpha)
-  -- | checkClass (provideEndStates s t alpha) lel = minimize xs dfa
-  -- | otherwise =
+compareResults old new dfa
+  | old == new = new
+  | otherwise = trace("old: " ++ show old ++ " new: " ++ show new) compareResults new (minimize new dfa) dfa
 
 
-split currentStates endStates = [currentClass,currentStates \\ currentClass]
+minimize :: [[Int]] -> DFA -> [[Int]]
+minimize [] _ = []
+minimize lel@(state:xs) dfa@(DFA states _ _ trans alpha) =
+  takeStates (sortByLen $ unique $ sort(map(\x -> sort x)(new ++ minimize xs dfa))) len
   where
-    currentClass = filter (\x -> elem x currentStates) endStates
+    len = length states
+    new = trace ("split: " ++ show (splitItIfYouCan state trans alpha))splitItIfYouCan state trans alpha
+
+takeStates [] _ = []
+takeStates (s:sx) len
+  | ((length s) <= len) = trace("lel: " ++ show s ++ " lel: " ++ show len) s:(takeStates sx (len - length s))
+  | otherwise = []
+
+
+-- splitItIfYouCan :: String -> [Transition] -> [String]-> [Int]
+splitItIfYouCan _ _ [] = []
+splitItIfYouCan state trans (a:as) = split state (provideEndStates state trans a) ++ splitItIfYouCan state trans as
+
+split :: [Int] -> [Int] -> [[Int]]
+split currentStates endStates
+  | currentClass == endStates = [currentClass]
+  | otherwise = delete [] [currentClass, currentStates \\ currentClass]
+    where
+      currentClass = filter (\x -> elem x currentStates) endStates
+
 
 checkClass :: [Int] -> [[Int]] -> Bool
 checkClass _ [] = False
@@ -158,15 +182,15 @@ checkClass endStates (l:ls)
   | otherwise = checkClass endStates ls
 
 
-provideEndStates :: [Int] -> [Transition] -> [String] -> [Int]
-provideEndStates states trans (a:as) = makeEndStatesList states trans a
+provideEndStates :: [Int] -> [Transition] -> String -> [Int]
+provideEndStates states trans a = makeEndStatesList states trans a
 
 
 makeEndStatesList [] _ _  = []
-makeEndStatesList (s:xs) trans a = trace ("checking:" ++ show s ++ "symbol:" ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
+makeEndStatesList (s:xs) trans a = trace ("checking: " ++ show s ++ " symbol: " ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
 
 makeEndStatesTuples [] _ _  = []
-makeEndStatesTuples (s:xs) trans a = trace ("checking:" ++ show s ++ "symbol:" ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
+makeEndStatesTuples (s:xs) trans a = trace ("checking: " ++ show s ++ " symbol: " ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
 
 
 makeTransition :: Int -> String -> [Transition] -> Int
