@@ -53,7 +53,7 @@ getTransitions (DFA _ _ _ t _) = getTransition t
 
 getTransition :: [Transition] -> [String]
 getTransition [] = []
-getTransition ((Transition c s n):ts) = (show c++","++ show s++","++ show n):getTransition ts
+getTransition ((Transition c s n):ts) = (show c++","++s++","++ show n):getTransition ts
 
 getAlphabet :: DFA -> [String]
 getAlphabet (DFA _ _ _ _ alphabet) = alphabet
