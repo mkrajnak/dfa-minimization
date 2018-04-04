@@ -10,7 +10,7 @@ data Transition = Transition {
         currState:: Int,
         symbol :: String,
         nextState :: Int
-} deriving Show
+} deriving (Show, Eq, Ord)
 
 data DFA = DFA {
         states :: [Int],
@@ -134,14 +134,18 @@ getAutomata fileName = do
 sortByLen :: [[a]] -> [[a]]
 sortByLen l = sortBy(\a b -> compare(length a) (length b)) l
 
+sortT :: [Transition] -> [Transition]
+sortT l = sortBy(\a b -> compare a b) l
+
 
 start_minimization :: DFA -> IO()
 start_minimization dfa = do
-  print $ makeComplete dfa sink
-  print $ compareResults [] start dfa
+  print $ complete
+  print $ compareResults [] start complete
   where
-    start = [(getEndStates dfa), (getStates dfa) \\ (getEndStates dfa)]
     sink = maximum(getStates dfa)+1
+    complete = makeComplete dfa sink
+    start = [(getEndStates complete), (getStates complete) \\ (getEndStates complete)]
 
 
 compareResults old new dfa
@@ -150,27 +154,29 @@ compareResults old new dfa
 
 
 minimize :: [[Int]] -> DFA -> [[Int]]
-minimize [] _ = []
-minimize lel@(state:xs) dfa@(DFA states _ _ trans alpha) =
-  takeStates (sortByLen $ unique $ sort(map(\x -> sort x)(new ++ minimize xs dfa))) len
+minimize _ (DFA _ _ _ _ []) = []
+minimize states dfa@(DFA allSt start end trans (a:as)) =
+    takeStates (sortByLen $ unique $ sort(map(\x -> sort x)(new ++ minimize new (DFA allSt start end trans as)))) len
   where
-    len = length states
-    new = trace ("split: " ++ show (splitItIfYouCan state trans alpha))splitItIfYouCan state trans alpha
+    len = length allSt
+    new = trace ("split: " ++ show (splitItIfYouCan states trans a))splitItIfYouCan states trans a
 
 takeStates [] _ = []
-takeStates (s:sx) len
-  | ((length s) <= len) = trace("lel: " ++ show s ++ " lel: " ++ show len) s:(takeStates sx (len - length s))
+takeStates l@(s:sx) len
+  | ((length s) <= len) = trace("L: " ++ show l ++ "adding: " ++ show s ++ " len: " ++ show len ++ " new: " ++ show ((len - length s))) s:(takeStates sx (len - length s))
+  | (len <= 0) = []
   | otherwise = []
 
 
 -- splitItIfYouCan :: String -> [Transition] -> [String]-> [Int]
-splitItIfYouCan _ _ [] = []
-splitItIfYouCan state trans (a:as) = split state (provideEndStates state trans a) ++ splitItIfYouCan state trans as
+splitItIfYouCan [] _ _ = []
+splitItIfYouCan (state:xs) trans a = split state (provideEndStates state trans a) ++ splitItIfYouCan xs trans a
 
 split :: [Int] -> [Int] -> [[Int]]
+split [] endStates = []
 split currentStates endStates
-  | currentClass == endStates = [currentClass]
-  | otherwise = delete [] [currentClass, currentStates \\ currentClass]
+  | currentClass == endStates = [currentStates]
+  | otherwise = trace("splitting: " ++ show currentClass ++ " by " ++ show endStates ++ " to " ++show(delete [] [currentClass, currentStates \\ currentClass])) delete [] [currentClass, currentStates \\ currentClass]
     where
       currentClass = filter (\x -> elem x currentStates) endStates
 
@@ -183,19 +189,15 @@ checkClass endStates (l:ls)
 
 
 provideEndStates :: [Int] -> [Transition] -> String -> [Int]
-provideEndStates states trans a = makeEndStatesList states trans a
+provideEndStates states trans a = trace("ENDSS: " ++ show (makeEndStatesList states trans a)) makeEndStatesList states trans a
 
 
 makeEndStatesList [] _ _  = []
-makeEndStatesList (s:xs) trans a = trace ("checking: " ++ show s ++ " symbol: " ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
-
-makeEndStatesTuples [] _ _  = []
-makeEndStatesTuples (s:xs) trans a = trace ("checking: " ++ show s ++ " symbol: " ++ show a)[makeTransition s a trans] ++ makeEndStatesList xs trans a
-
+makeEndStatesList (s:xs) trans a = [makeTransition s a trans] ++ makeEndStatesList xs trans a
 
 makeTransition :: Int -> String -> [Transition] -> Int
 makeTransition state symbol ((Transition c s e):xs)
-  | state == c && symbol == s = e
+  | state == c && symbol == s = trace ("checking: " ++ show c ++ " symbol: " ++ show s ++ " = " ++ show e) e
   | otherwise = makeTransition state symbol xs
 
 
@@ -207,7 +209,7 @@ makeComplete dfa@(DFA states start end trans alpha) sink
         states = states ++ [sink],
         startState = start,
         endStates = end,
-        transitions = trans ++ addMissingTrans(states ++ [sink]) trans alpha sink,
+        transitions = sortT(trans ++ addMissingTrans(states ++ [sink]) trans alpha sink),
         alphabet = alpha
 }
 
