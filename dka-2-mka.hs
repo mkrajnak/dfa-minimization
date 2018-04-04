@@ -4,7 +4,6 @@
 import System.Environment
 import System.IO
 import Data.List
-import Debug.Trace
 
 data Transition = Transition {
         currState:: Int,
@@ -123,25 +122,25 @@ start_minimization dfa = view $ rebuild reduced complete
     sink = maximum(getStates dfa)+1
     complete = makeComplete dfa sink
     start = [(getEndStates complete), (getStates complete) \\ (getEndStates complete)]
-    reduced = compareResults [] start complete
+    reduced = zip [1..] $ compareResults [] start complete
 
-rebuild :: [[Int]] -> DFA -> DFA
+rebuild :: [(Int,[Int])] -> DFA -> DFA
 rebuild reduced old@(DFA _ start end trans alpha) = DFA {
-        states = sort $ map(\x -> head x) reduced,
+        states = sort $ map(\x -> fst x) reduced,
         startState = renameState reduced start,
         endStates = sort $nub $ map(\x -> renameState reduced x ) end,
         transitions = sortT $ nub $ renameTransitions reduced trans,
         alphabet = alpha
 }
 
-renameTransitions :: [[Int]] -> [Transition] -> [Transition]
+renameTransitions :: [(Int,[Int])] -> [Transition] -> [Transition]
 renameTransitions _ [] = []
 renameTransitions r ((Transition c s e):xs) =
   (Transition (renameState r c) s (renameState r e) ):renameTransitions r xs
 
-renameState :: [[Int]] -> Int -> Int
+renameState :: [(Int,[Int])] -> Int -> Int
 renameState (x:xs) oldState
-  | elem oldState x = head x
+  | elem oldState (snd x) = fst x
   | otherwise = renameState xs oldState
 
 
@@ -150,7 +149,7 @@ renameState (x:xs) oldState
 compareResults :: [[Int]] -> [[Int]] -> DFA -> [[Int]]
 compareResults old new dfa
   | old == new = new
-  | otherwise = trace("old: " ++ show old ++ " new: " ++ show new) compareResults new (minimize new dfa) dfa
+  | otherwise = compareResults new (minimize new dfa) dfa
 
 minimize :: [[Int]] -> DFA -> [[Int]]
 minimize _ (DFA _ _ _ _ []) = []
@@ -164,7 +163,7 @@ minimize states dfa@(DFA allSt start end trans (a:as)) = stepStates minimizer le
 stepStates :: [[Int]] -> Int -> [[Int]]
 stepStates [] _ = []
 stepStates l@(s:sx) len
-  | ((length s) <= len && (len > 0)) = trace("L: " ++ show l ++ "adding: " ++ show s ++ " len: " ++ show len ++ " new: " ++ show ((len - length s))) s:(stepStates newXs (len - length s))
+  | ((length s) <= len && (len > 0)) = s:(stepStates newXs (len - length s))
   | otherwise = []
     where
       newXs = deleteAdded s sx
