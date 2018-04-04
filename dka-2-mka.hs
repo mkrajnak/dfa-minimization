@@ -33,6 +33,7 @@ getStates (DFA states _ _ _ _) = states
 
 getStatesString :: [Int] -> String
 getStatesString [] = ""
+getStatesString (s:[]) = show s
 getStatesString (s:xs) = show s ++ "," ++ getStatesString xs
 
 getStartState :: DFA -> Int
@@ -77,7 +78,7 @@ parseTransition (x:xs) = if length x > 0
         symbol = (getSeparatedSubStrings x) !! 1,
         nextState = read ((getSeparatedSubStrings x) !! 2) :: Int
   } : parseTransition xs
-  else error "State cannot be defined by an empty line" -- TODO rethink if this condition is needed
+  else error "State cannot be defined by an empty line"
 
 parseAlphabet :: [String] -> [String]
 parseAlphabet [] = []
@@ -117,23 +118,19 @@ sortT :: [Transition] -> [Transition]
 sortT l = sortBy(\a b -> compare a b) l
 
 start_minimization :: DFA -> IO()
-start_minimization dfa = do
-  print $ complete
-  print $ reduced
-  view $ rebuild reduced complete
+start_minimization dfa = view $ rebuild reduced complete
   where
     sink = maximum(getStates dfa)+1
     complete = makeComplete dfa sink
     start = [(getEndStates complete), (getStates complete) \\ (getEndStates complete)]
     reduced = compareResults [] start complete
 
-
 rebuild :: [[Int]] -> DFA -> DFA
-rebuild reduced old@(DFA allSt start end trans alpha) = DFA {
-        states = map(\x -> head x) reduced,
+rebuild reduced old@(DFA _ start end trans alpha) = DFA {
+        states = sort $ map(\x -> head x) reduced,
         startState = renameState reduced start,
-        endStates = nub $ map(\x -> renameState reduced x ) end,
-        transitions = nub $ renameTransitions reduced trans,
+        endStates = sort $nub $ map(\x -> renameState reduced x ) end,
+        transitions = sortT $ nub $ renameTransitions reduced trans,
         alphabet = alpha
 }
 
@@ -161,14 +158,22 @@ minimize states dfa@(DFA allSt start end trans (a:as)) = stepStates minimizer le
   where
     len = length allSt
     nextDFA = (DFA allSt start end trans as)
-    new = trace ("split: " ++ show (splitItIfYouCan states trans a))splitItIfYouCan states trans a
-    minimizer = (sortByLen $ nub $ sort(map(\x -> sort x)(new ++ minimize new nextDFA)))
+    new = splitItIfYouCan states trans a
+    minimizer = (sortByLen $ nub $ sort(map(\x -> sort $ nub x)(new ++ minimize new nextDFA)))
 
 stepStates :: [[Int]] -> Int -> [[Int]]
 stepStates [] _ = []
 stepStates l@(s:sx) len
-  | ((length s) <= len && (len > 0)) = trace("L: " ++ show l ++ "adding: " ++ show s ++ " len: " ++ show len ++ " new: " ++ show ((len - length s))) s:(stepStates sx (len - length s))
+  | ((length s) <= len && (len > 0)) = trace("L: " ++ show l ++ "adding: " ++ show s ++ " len: " ++ show len ++ " new: " ++ show ((len - length s))) s:(stepStates newXs (len - length s))
   | otherwise = []
+    where
+      newXs = deleteAdded s sx
+
+deleteAdded :: [Int] -> [[Int]] -> [[Int]]
+deleteAdded s [] = []
+deleteAdded s (x:xs)
+  | ((intersect s x) /= []) = deleteAdded s xs
+  | otherwise = x:deleteAdded s xs
 
 -- Test if current allocation of states has to be split and make if required
 splitItIfYouCan :: [[Int]] -> [Transition] -> String-> [[Int]]
@@ -179,7 +184,7 @@ split :: [Int] -> [Int] -> [[Int]]
 split [] endStates = []
 split currentStates endStates
   | (currentClass == endStates) || (length currentStates == 1) = [currentStates]
-  | otherwise = trace("splitting: " ++ show currentClass ++ " by " ++ show endStates ++ " to " ++show(delete [] [currentClass, currentStates \\ currentClass])) delete [] [currentClass, currentStates \\ currentClass]
+  | otherwise = delete [] [currentClass, currentStates \\ currentClass]
     where
       currentClass = filter (\x -> elem x currentStates) endStates
 
@@ -190,7 +195,7 @@ checkClass endStates (l:ls)
   | otherwise = checkClass endStates ls
 
 provideEndStates :: [Int] -> [Transition] -> String -> [Int]
-provideEndStates states trans a = trace("ENDSS: " ++ show (makeEndStatesList states trans a)) makeEndStatesList states trans a
+provideEndStates states trans a = makeEndStatesList states trans a
 
 -- Returns list of endStates returned by executing the transition on states from
 -- list l with symbol a
@@ -200,14 +205,14 @@ makeEndStatesList l@(s:xs) trans a = [makeTransition s a trans] ++ makeEndStates
 
 makeTransition :: Int -> String -> [Transition] -> Int
 makeTransition state symbol ((Transition c s e):xs)
-  | state == c && symbol == s = trace ("checking: " ++ show c ++ " symbol: " ++ show s ++ " = " ++ show e) e
+  | state == c && symbol == s = e
   | otherwise = makeTransition state symbol xs
 
 -- Checks if DFA has a transition for every symbol in Σ, if not add SINK state
 makeComplete :: DFA -> Int -> DFA
 makeComplete dfa@(DFA states start end trans alpha) sink
   | (isComplete dfa) = dfa
-  | otherwise = trace("DFA not complete") DFA {
+  | otherwise = DFA {
         states = states ++ [sink],
         startState = start,
         endStates = end,
@@ -225,8 +230,8 @@ addMissingTrans (s:ss) trans alpha sink
 checkState :: Int -> [Transition] -> [String] -> Int -> [Transition]
 checkState _ _ [] _ = []
 checkState state trans (a:as) sink
-  | (hasRule state a trans) =  trace("Checking: "++ show state ++ "->"  ++ show a) checkState state trans as sink
-  | otherwise = trace ("Adding: " ++ show (Transition state a sink)) [(Transition state a sink)] ++ (checkState state trans as sink)
+  | (hasRule state a trans) = checkState state trans as sink
+  | otherwise = [(Transition state a sink)] ++ (checkState state trans as sink)
 
 -- helper function checks if transition is in list of transitions
 hasRule :: Int -> String -> [Transition] -> Bool
@@ -242,7 +247,7 @@ hasState state symbol (Transition c s n)
 
 isComplete :: DFA -> Bool
 isComplete dfa
-  | length (getTransitions dfa) == length (getStates dfa) * length (getAlphabet dfa) = trace("trans: " ++ show (length (getTransitions dfa)) ++ " calc: " ++ show (length (getStates dfa) * length (getAlphabet dfa))) True
+  | length (getTransitions dfa) == length (getStates dfa) * length (getAlphabet dfa) = True
   | otherwise = False
 
 -- decite beetween printing or minimization
