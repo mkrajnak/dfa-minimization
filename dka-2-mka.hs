@@ -4,7 +4,6 @@
 import System.Environment
 import System.IO
 import Data.List
-import Debug.Trace
 
 data Transition = Transition {
         currState:: Int,
@@ -118,9 +117,7 @@ sortT :: [Transition] -> [Transition]
 sortT l = sortBy(\a b -> compare a b) l
 
 start_minimization :: DFA -> IO()
-start_minimization dfa = do
-  print $ reduced
-  view $ rebuild reduced complete
+start_minimization dfa = view $ rebuild reduced complete
   where
     sink = maximum(getStates dfa)+1
     complete = makeComplete dfa sink
@@ -150,7 +147,7 @@ renameState (x:xs) oldState
 -- in two iterations
 compareResults :: [[Int]] -> [[Int]] -> DFA -> [[Int]]
 compareResults old new dfa
-  | old == new = new
+  | old == new = sort new
   | otherwise = compareResults new (minimize new dfa) dfa
 
 minimize :: [[Int]] -> DFA -> [[Int]]
@@ -159,7 +156,7 @@ minimize states dfa@(DFA allSt start end trans (a:as)) = stepStates minimizer le
   where
     len = length allSt
     nextDFA = (DFA allSt start end trans as)
-    new = trace("Splitted with" ++ show a ++": " ++ show states ++ " to: " ++ show (splitItIfYouCan states trans a)) splitItIfYouCan states trans a
+    new = splitItIfYouCan states trans a
     minimizer = (sortByLen $ nub $ sort(map(\x -> sort $ nub x)(new ++ minimize new nextDFA)))
 
 stepStates :: [[Int]] -> Int -> [[Int]]
@@ -184,8 +181,8 @@ splitItIfYouCan (state:xs) trans a =
 
 split :: [Int] -> [Transition] -> String -> [[Int]]
 split currentStates trans a
-  | (length currentStates == 1) = trace(show a ++": Checked: " ++ show [currentStates])[currentStates]
-  | otherwise = trace (show a ++ " : "++show currentStates ++" Calculated: " ++ show (delete [] [currentClass, currentStates \\ currentClass]) ++ "for: " ++ show endStates) delete [] [currentClass, currentStates \\ currentClass]
+  | (length currentStates == 1) = [currentStates]
+  | otherwise = delete [] [currentClass, currentStates \\ currentClass]
     where
       endStates = nub $ filter(\x -> elem x currentStates) $ provideEndStates currentStates trans a
       currentClass = filter(\x -> (leadToEndStates x a endStates trans)) currentStates
