@@ -19,7 +19,6 @@ data DFA = DFA { -- Deterministiv Finite State Automata - internal representatio
         alphabet :: [String]
 } deriving Show
 
-
 view :: DFA -> IO()
 view dfa = do
   putStrLn (getStatesString (getStates dfa))
@@ -251,7 +250,7 @@ hasState state symbol (Transition c s n)
 
 isComplete :: DFA -> Bool
 isComplete dfa
-  | length (getTransitions dfa) == length (getStates dfa) * length (getAlphabet dfa) = True
+  | length(getTransitions dfa) == length(getStates dfa) * length(getAlphabet dfa) = True
   | otherwise = False
 
 -- decite beetween printing or minimization
@@ -269,7 +268,7 @@ getHelp = "Usage: ./dfa-2-mka [-i|-t] [file]"
 
 main = do
   args <- getArgs
-  -- check argument 1. zero args 2. 1st must be in [-i|-t] 3. less than tree
+  -- check arguments 1. zero args 2. 1st must be in [-i|-t] 3. less than tree
   if ((length args == 0) || not (checkArgs $ head args) || (length args) > 2 )
     then error getHelp
     else do
