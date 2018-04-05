@@ -6,4 +6,4 @@ all:
 clean:
 	rm -rf dka-2-mka *.o  *.hi *.zip
 zip:
-	zip -r flp-fun-xkrajn02.zip dka-2-mka.hs Makefile
+	zip -r flp-fun-xkrajn02.zip dka-2-mka.hs Makefile Readme.md
