@@ -1,3 +1,7 @@
+<!-- Readme written in markdown
+DFA-2-MKA, project for FLP course at FIT BUT
+Martin Krajnak, xkrajn02@stud.fit.vutbr.cz -->
+
 # Deterministic Finite State Automata (DFA) Minimization
 
 ### Usage:
@@ -26,7 +30,7 @@
 ### Examples
 Sample input | Output with arg `-i` | Output with arg `-t`
 ------------ | -------------- | ---------
-<code> 1,2,3<br>1<br>1,3<br>1,b,1<br>1,a,2<br>2,a,3<br>2,b,2<br>3,a,2<br>3,b,3</code> | <code> 1,2,3<br>1<br>1,3<br>1,b,1<br>1,a,2<br>2,a,3<br>2,b,2<br>3,a,2<br>3,b,3</code> | <code>1,2<br>1<br>1<br>1,a,2<br>1,b,1<br>2,a,1<br>2,b,2</code>
+`1,2,3`<br>`1`<br> `1,3`<br>`1,b,1`<br>`1,a,2`<br>`2,a,3`<br>`2,b,2`<br>`3,a,2`<br>`3,b,3` | `1,2,3`<br>`1`<br>`1,3`<br>`1,b,1`<br>`1,a,2 `<br> `2,a,3`<br>`2,b,2` <br>`3,a,2`<br>`3,b,3` | `1,2`<br>`1`<br>`1 `<br>`1,a,2`<br>`1,b,1`<br>`2,a,1`<br>`2,b,2`
 
 
  [DFA Minimization](https://en.wikipedia.org/wiki/DFA_minimization)
